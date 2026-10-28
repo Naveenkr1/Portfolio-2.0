@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
+import { Link } from 'gatsby';
 import styled from 'styled-components';
 import { Layout } from '@components';
 import sr from '@utils/sr';
@@ -506,6 +507,114 @@ const VectorIllustration = styled.div`
   }
 `;
 
+const StyledMoreCaseStudies = styled.section`
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 80px 50px;
+  border-top: 1px solid var(--lightest-navy);
+
+  @media (max-width: 900px) {
+    padding: 60px 25px;
+  }
+
+  @media (max-width: 480px) {
+    padding: 50px 16px;
+  }
+
+  .more-title {
+    font-family: var(--font-mono);
+    font-size: var(--fz-xs);
+    color: var(--green);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 32px;
+  }
+
+  .more-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 24px;
+
+    @media (max-width: 700px) {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .more-card {
+    display: block;
+    text-decoration: none;
+    border-radius: 12px;
+    overflow: hidden;
+    background: var(--light-navy);
+    border: 1px solid var(--lightest-navy);
+    transition: var(--transition);
+    position: relative;
+    cursor: pointer;
+
+    &:hover {
+      transform: translateY(-6px);
+      border-color: var(--green);
+      box-shadow: 0 20px 40px -15px rgba(2, 12, 27, 0.8);
+    }
+
+    .more-card-img {
+      width: 100%;
+      aspect-ratio: 16/9;
+      object-fit: cover;
+      display: block;
+      background: var(--lightest-navy);
+      transition: transform 0.4s ease;
+    }
+
+    &:hover .more-card-img {
+      transform: scale(1.04);
+    }
+
+    .more-card-body {
+      padding: 20px 24px;
+    }
+
+    .more-card-label {
+      font-family: var(--font-mono);
+      font-size: var(--fz-xxs);
+      color: var(--green);
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      margin-bottom: 8px;
+    }
+
+    .more-card-title {
+      font-size: var(--fz-xl);
+      font-weight: 600;
+      color: var(--lightest-slate);
+      line-height: 1.2;
+      margin: 0;
+      transition: color var(--transition);
+    }
+
+    &:hover .more-card-title {
+      color: var(--green);
+    }
+
+    .more-card-arrow {
+      position: absolute;
+      bottom: 20px;
+      right: 24px;
+      color: var(--green);
+      font-size: 20px;
+      opacity: 0;
+      transition: opacity 0.2s ease, transform 0.2s ease;
+      transform: translateX(-4px);
+    }
+
+    &:hover .more-card-arrow {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+`;
+
 const MarketeqCaseStudy = ({ location }) => {
   const [activeSection, setActiveSection] = useState('');
 
@@ -985,6 +1094,51 @@ const MarketeqCaseStudy = ({ location }) => {
           </StyledSection>
         </StyledContentArea>
       </StyledCaseStudyContainer>
+
+      <StyledMoreCaseStudies>
+        <p className="more-title">More Case Study</p>
+        <div className="more-grid">
+          {[
+            {
+              title: 'Streamlining Checkout: A Mobile-First Solution to Boost Conversions',
+              banner: 'https://res.cloudinary.com/duxol6zvd/image/upload/v1792413397/portfolio/featured/vhg1wcbyfoxtvcjfhp4r.webp',
+              url: '/case-study/wework/',
+            },
+            {
+              title: 'Build Voting Feature for Alright TV',
+              banner: 'https://res.cloudinary.com/duxol6zvd/image/upload/v1792394001/portfolio/featured/yfsix2cwwuxktohjz6p5.webp',
+              url: '/case-study/alright-app/',
+            },
+          ].map((project, i) => {
+            const isInternal = project.url.startsWith('/');
+            const cardContent = (
+              <>
+                <img src={project.banner} alt={project.title} className="more-card-img" />
+                <div className="more-card-body">
+                  <h3 className="more-card-title">{project.title}</h3>
+                </div>
+                <span className="more-card-arrow">&#8594;</span>
+              </>
+            );
+
+            return isInternal ? (
+              <Link key={i} to={project.url} className="more-card">
+                {cardContent}
+              </Link>
+            ) : (
+              <a
+                key={i}
+                href={project.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="more-card"
+              >
+                {cardContent}
+              </a>
+            );
+          })}
+        </div>
+      </StyledMoreCaseStudies>
     </Layout>
   );
 };

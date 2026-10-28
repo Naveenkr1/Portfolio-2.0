@@ -1245,8 +1245,116 @@ const StyledMetadataRow = styled.div`
   }
 `;
 
+const StyledMoreCaseStudies = styled.section`
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 80px 50px;
+  border-top: 1px solid var(--lightest-navy);
+
+  @media (max-width: 900px) {
+    padding: 60px 25px;
+  }
+
+  @media (max-width: 480px) {
+    padding: 50px 16px;
+  }
+
+  .more-title {
+    font-family: var(--font-mono);
+    font-size: var(--fz-xs);
+    color: var(--green);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 32px;
+  }
+
+  .more-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 24px;
+
+    @media (max-width: 700px) {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .more-card {
+    display: block;
+    text-decoration: none;
+    border-radius: 12px;
+    overflow: hidden;
+    background: var(--light-navy);
+    border: 1px solid var(--lightest-navy);
+    transition: var(--transition);
+    position: relative;
+    cursor: pointer;
+
+    &:hover {
+      transform: translateY(-6px);
+      border-color: var(--green);
+      box-shadow: 0 20px 40px -15px rgba(2, 12, 27, 0.8);
+    }
+
+    .more-card-img {
+      width: 100%;
+      aspect-ratio: 16/9;
+      object-fit: cover;
+      display: block;
+      background: var(--lightest-navy);
+      transition: transform 0.4s ease;
+    }
+
+    &:hover .more-card-img {
+      transform: scale(1.04);
+    }
+
+    .more-card-body {
+      padding: 20px 24px;
+    }
+
+    .more-card-label {
+      font-family: var(--font-mono);
+      font-size: var(--fz-xxs);
+      color: var(--green);
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      margin-bottom: 8px;
+    }
+
+    .more-card-title {
+      font-size: var(--fz-xl);
+      font-weight: 600;
+      color: var(--lightest-slate);
+      line-height: 1.2;
+      margin: 0;
+      transition: color var(--transition);
+    }
+
+    &:hover .more-card-title {
+      color: var(--green);
+    }
+
+    .more-card-arrow {
+      position: absolute;
+      bottom: 20px;
+      right: 24px;
+      color: var(--green);
+      font-size: 20px;
+      opacity: 0;
+      transition: opacity 0.2s ease, transform 0.2s ease;
+      transform: translateX(-4px);
+    }
+
+    &:hover .more-card-arrow {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+`;
+
 const CaseStudyTemplate = ({ data, location }) => {
-  const { caseStudy } = data;
+  const { caseStudy, featuredProjects } = data;
 
   if (!caseStudy) {
     return (
@@ -1300,6 +1408,15 @@ const CaseStudyTemplate = ({ data, location }) => {
     (location && (location.pathname.includes('/ai-lab') || location.pathname.includes('/ai.lab')));
   const cleanSummary = (frontmatter.summary || '').split(' || ')[0] || frontmatter.summary || '';
   const topCTA = frontmatter.cta_button;
+
+  // Selected Work: filter out project if it links to the current case study, pick 2
+  const selectedProjects = (featuredProjects?.edges || [])
+    .map(e => e.node)
+    .filter(p => {
+      const link = (p.cta || p.external || '').trim();
+      return frontSlug ? !link.includes(frontSlug) : true;
+    })
+    .slice(0, 2);
 
   let processedHtml = html;
   if (isAILab && topCTA && topCTA.enabled) {
@@ -1852,6 +1969,66 @@ const CaseStudyTemplate = ({ data, location }) => {
         </StyledContentArea>
       </StyledCaseStudyContainer>
 
+      {!isAILab && selectedProjects && selectedProjects.length > 0 && (
+        <StyledMoreCaseStudies>
+          <p className="more-title">More Case Study</p>
+          <div className="more-grid">
+            {selectedProjects.map((project, i) => {
+              const rawLink = (project.cta || project.external || '').trim();
+              const caseStudyMatch = rawLink.match(
+                /^(?:https?:\/\/[^\/]+)?(\/case-study\/[^\/\s]+(?:\/)?.*)$/i
+              );
+              const projectLink = caseStudyMatch
+                ? (caseStudyMatch[1].startsWith('/') ? caseStudyMatch[1] : `/${caseStudyMatch[1]}`)
+                : rawLink;
+              const isInternal = projectLink.startsWith('/');
+
+              const cardContent = (
+                <>
+                  {project.cover ? (
+                    <img
+                      src={project.cover}
+                      alt={project.title}
+                      className="more-card-img"
+                    />
+                  ) : (
+                    <div
+                      className="more-card-img"
+                      style={{
+                        background: 'var(--lightest-navy)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    />
+                  )}
+                  <div className="more-card-body">
+                    <h3 className="more-card-title">{project.title}</h3>
+                  </div>
+                  <span className="more-card-arrow">&#8594;</span>
+                </>
+              );
+
+              return isInternal ? (
+                <Link key={i} to={projectLink} className="more-card">
+                  {cardContent}
+                </Link>
+              ) : (
+                <a
+                  key={i}
+                  href={projectLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="more-card"
+                >
+                  {cardContent}
+                </a>
+              );
+            })}
+          </div>
+        </StyledMoreCaseStudies>
+      )}
+
       {lightbox.isOpen && (
         <StyledLightbox
           onClick={handleBackdropClick}
@@ -1954,6 +2131,20 @@ export const pageQuery = graphql`
         url
         styleVariant
         color
+      }
+    }
+    featuredProjects: allMongodbPortfolioProjects(
+      filter: { published: { eq: true } }
+      sort: { fields: [date], order: ASC }
+    ) {
+      edges {
+        node {
+          title
+          cover
+          cta
+          external
+          role
+        }
       }
     }
   }
