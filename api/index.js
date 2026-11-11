@@ -3,6 +3,7 @@ require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 const express = require('express');
 const cors = require('cors');
 const fs = require('fs');
+const os = require('os');
 const { exec } = require('child_process');
 const multer = require('multer');
 const matter = require('gray-matter');
@@ -731,9 +732,14 @@ app.post('/api/deploy', async (req, res) => {
       isRebuilding = true;
       console.log('[Deploy] Starting local Gatsby production rebuild...');
 
+      const buildEnv = { ...process.env };
+      if (!buildEnv.NODE_OPTIONS && os.totalmem() < 3 * 1024 * 1024 * 1024) {
+        buildEnv.NODE_OPTIONS = '--max-old-space-size=2048';
+      }
+
       exec(
         'npm run build',
-        { cwd: PORTFOLIO_ROOT, maxBuffer: 20 * 1024 * 1024 },
+        { cwd: PORTFOLIO_ROOT, maxBuffer: 20 * 1024 * 1024, env: buildEnv },
         (buildErr, stdout, stderr) => {
           isRebuilding = false;
           if (buildErr) {

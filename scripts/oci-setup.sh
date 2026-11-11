@@ -100,6 +100,9 @@ sudo systemctl restart caddy
 # 9. Build & Start PM2 if .env exists
 if [ -f "$APP_DIR/.env" ]; then
   echo "==> Building Gatsby site..."
+  if [ "$TOTAL_RAM_MB" -lt 3000 ]; then
+    export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=2048}"
+  fi
   npm run build
   chmod -R a+rX "$APP_DIR/public"
   echo "==> Starting API server with PM2..."

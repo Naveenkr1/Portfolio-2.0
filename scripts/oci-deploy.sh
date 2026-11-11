@@ -10,6 +10,12 @@ if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
 fi
 
 npm install --legacy-peer-deps
+
+TOTAL_RAM_MB=$(free -m | awk '/^Mem:/{print $2}')
+if [ "$TOTAL_RAM_MB" -lt 3000 ]; then
+  export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=2048}"
+fi
+
 npm run build
 chmod -R a+rX "$APP_DIR/public"
 
