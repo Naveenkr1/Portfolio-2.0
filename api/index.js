@@ -1,8 +1,9 @@
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 const express = require('express');
 const cors = require('cors');
-const path = require('path');
 const fs = require('fs');
+const { exec } = require('child_process');
 const multer = require('multer');
 const matter = require('gray-matter');
 const cookieParser = require('cookie-parser');
@@ -13,6 +14,7 @@ const { CloudinaryStorage } = require('multer-storage-cloudinary');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+let isRebuilding = false;
 
 // Cloudinary Config
 cloudinary.config({
@@ -60,8 +62,17 @@ app.use(cors({ origin: true, credentials: true }));
 app.use(express.json({ limit: '100mb' }));
 app.use(cookieParser());
 
-// Serve Admin static files directly (index.html contains embedded login overlay)
+// Serve Admin & Uploaded static files directly (index.html contains embedded login overlay)
 app.use('/admin', express.static(path.join(STATIC_DIR, 'admin')));
+app.use('/uploads', express.static(path.join(STATIC_DIR, 'uploads')));
+
+app.get('/api/health', (req, res) => {
+  res.json({
+    ok: true,
+    rebuilding: isRebuilding,
+    mode: process.env.LOCAL_REBUILD === 'true' ? 'local-rebuild' : 'git-webhook',
+  });
+});
 
 app.get('/login', (req, res) => {
   // If they are already logged in, redirect them to admin
@@ -529,7 +540,6 @@ function writeCaseStudyMarkdown(dir, data) {
   fs.writeFileSync(filePath, lines.join('\n'));
   triggerLocalGatsbyRefresh();
 }
-const { exec } = require('child_process');
 
 // ─────────────────────────────────────────────
 // PLAY PROJECTS (AI & OTHER)
@@ -705,38 +715,89 @@ app.post('/api/play-projects/:type/:slug/toggle-publish', async (req, res) => {
 app.post('/api/deploy', async (req, res) => {
   try {
     const webhookUrl = process.env.DEPLOY_WEBHOOK_URL;
-    
+    const localRebuild = process.env.LOCAL_REBUILD === 'true';
+
     // Always trigger local Gatsby hot-refresh
     await triggerLocalGatsbyRefresh();
-    
-    // Commit and push changes to git
-    exec('git add -A && (git commit -m "Content update from CMS" || true) && git push origin main && (git push vercel-repo main || true)', (error, stdout, stderr) => {
-      console.log("Git deploy output:", stdout, stderr);
-      if (error) {
-        console.warn("Git push warning:", error.message);
-      }
-      
-      if (!webhookUrl) {
-        return res.json({ 
-          success: true, 
-          message: 'Changes committed & pushed to GitHub! Local Gatsby cache updated.' 
+
+    if (localRebuild) {
+      if (isRebuilding) {
+        return res.status(409).json({
+          success: false,
+          error: 'A site rebuild is already in progress. Please wait a moment.',
         });
       }
 
-      console.log(`Triggering deploy webhook: ${webhookUrl}`);
-      fetch(webhookUrl, { method: 'POST' })
-        .then(response => {
-          if (response.ok) {
-            res.json({ success: true, message: 'Deployment triggered successfully! Your live site will update shortly.' });
-          } else {
-            res.json({ success: true, message: `Git push completed! Webhook status: ${response.status}` });
+      isRebuilding = true;
+      console.log('[Deploy] Starting local Gatsby production rebuild...');
+
+      exec(
+        'npm run build',
+        { cwd: PORTFOLIO_ROOT, maxBuffer: 20 * 1024 * 1024 },
+        (buildErr, stdout, stderr) => {
+          isRebuilding = false;
+          if (buildErr) {
+            console.error('[Deploy] Build failed:', stderr || buildErr.message);
+            return res.status(500).json({
+              success: false,
+              error: `Rebuild failed: ${buildErr.message}`,
+            });
           }
-        })
-        .catch(err => {
-          res.json({ success: true, message: `Git push completed! (Webhook note: ${err.message})` });
-        });
-    });
+
+          console.log('[Deploy] Gatsby rebuild completed.');
+
+          if (process.env.GIT_AUTO_PUSH === 'true') {
+            exec(
+              'git add -A && (git commit -m "Content update from CMS" || true) && (git push origin main || true)',
+              { cwd: PORTFOLIO_ROOT },
+              (gitErr) => {
+                if (gitErr) console.warn('[Deploy] Optional git push warning:', gitErr.message);
+              }
+            );
+          }
+
+          return res.json({
+            success: true,
+            message: 'Site rebuilt and published live!',
+          });
+        }
+      );
+      return;
+    }
+
+    // Default mode: Commit and push changes to git + optional webhook
+    exec(
+      'git add -A && (git commit -m "Content update from CMS" || true) && git push origin main && (git push vercel-repo main || true)',
+      { cwd: PORTFOLIO_ROOT },
+      (error, stdout, stderr) => {
+        console.log("Git deploy output:", stdout, stderr);
+        if (error) {
+          console.warn("Git push warning:", error.message);
+        }
+
+        if (!webhookUrl) {
+          return res.json({
+            success: true,
+            message: 'Changes committed & pushed to GitHub! Local Gatsby cache updated.'
+          });
+        }
+
+        console.log(`Triggering deploy webhook: ${webhookUrl}`);
+        fetch(webhookUrl, { method: 'POST' })
+          .then(response => {
+            if (response.ok) {
+              res.json({ success: true, message: 'Deployment triggered successfully! Your live site will update shortly.' });
+            } else {
+              res.json({ success: true, message: `Git push completed! Webhook status: ${response.status}` });
+            }
+          })
+          .catch(err => {
+            res.json({ success: true, message: `Git push completed! (Webhook note: ${err.message})` });
+          });
+      }
+    );
   } catch (err) {
+    isRebuilding = false;
     console.error(`Deploy error: ${err.message}`);
     res.status(500).json({ error: err.message });
   }
