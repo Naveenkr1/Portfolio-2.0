@@ -58,11 +58,13 @@ fi
 
 # 6. Open HTTP (80) & HTTPS (443) in Ubuntu iptables (OCI images block these by default)
 echo "==> Opening ports 80 and 443 in OS firewall..."
-if ! sudo iptables -C INPUT -p tcp --dport 80 -j ACCEPT >/dev/null 2>&1; then
-  sudo iptables -I INPUT 6 -m state --state NEW -p tcp --dport 80 -j ACCEPT || sudo iptables -I INPUT 1 -p tcp --dport 80 -j ACCEPT
+REJECT_LINE=$(sudo iptables -L INPUT --line-numbers -n | awk '/REJECT/{print $1; exit}')
+INSERT_POS="${REJECT_LINE:-1}"
+if ! sudo iptables -S INPUT | grep -q -- '--dport 80 .*ACCEPT'; then
+  sudo iptables -I INPUT "$INSERT_POS" -m state --state NEW -p tcp --dport 80 -j ACCEPT
 fi
-if ! sudo iptables -C INPUT -p tcp --dport 443 -j ACCEPT >/dev/null 2>&1; then
-  sudo iptables -I INPUT 6 -m state --state NEW -p tcp --dport 443 -j ACCEPT || sudo iptables -I INPUT 1 -p tcp --dport 443 -j ACCEPT
+if ! sudo iptables -S INPUT | grep -q -- '--dport 443 .*ACCEPT'; then
+  sudo iptables -I INPUT "$INSERT_POS" -m state --state NEW -p tcp --dport 443 -j ACCEPT
 fi
 echo iptables-persistent iptables-persistent/autosave_v4 boolean true | sudo debconf-set-selections
 echo iptables-persistent iptables-persistent/autosave_v6 boolean true | sudo debconf-set-selections
