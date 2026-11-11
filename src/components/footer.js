@@ -106,7 +106,7 @@ const Footer = ({ isCaseStudy }) => {
 
       {!isCaseStudy && (
         <StyledCredit tabIndex="-1">
-          <a href="https://www.naveenkr.me">
+          <a href="https://www.naveens.design">
             <div>Designed &amp; Built by Naveen Kumar</div>
           </a>
         </StyledCredit>
