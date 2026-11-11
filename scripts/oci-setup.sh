@@ -85,7 +85,8 @@ npm install --legacy-peer-deps
 # 8. Configure Caddyfile
 echo "==> Configuring /etc/caddy/Caddyfile..."
 if [ "$DOMAIN" != ":80" ]; then
-  SITE_BLOCK="${DOMAIN}, www.${DOMAIN}"
+  BASE_DOMAIN="${DOMAIN#www.}"
+  SITE_BLOCK="${BASE_DOMAIN}, www.${BASE_DOMAIN}"
 else
   SITE_BLOCK=":80"
 fi
